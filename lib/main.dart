@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:table_calendar/table_calendar.dart';
+import 'event_create_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -28,7 +31,7 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       home: const MyHomePage(title: 'Dosli Naily App ✨'),
@@ -56,6 +59,24 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  DateTime _selectedDay = DateTime.now();
+  DateTime _focusedDay = DateTime.now();
+  String _currentEvents = 'No events for this day';
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  Database? db;
+
+  Future<Database> getDb() async {
+    if (this.db != null) {
+      return Future<Database>.value(this.db);
+    }
+    final db = await openDatabase('events.db', 
+      version: 1,
+      onCreate: (Database db, int version) async {
+        await db.execute('CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT, date DATETIME)');
+      }
+    );
+    return db;
+  }
 
   void _incrementCounter() {
     setState(() {
@@ -87,6 +108,43 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       }
     });
+  }
+
+  void addEvent() {
+    // Use form to create a new event on date
+    // Display form
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => EventCreatePage()),
+    );
+
+    
+    // Save event
+    // Display event on calendar
+    // Notify user that event has been added
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Event added'),
+      ),
+    );
+  }
+
+  void deleteDb() {
+    deleteDatabase('events.db');
+  }
+
+  Future<String> getEventsForDay() async {
+    // Get count events for _selectedDay
+    final db = await getDb();
+    final List<Map<String, dynamic>> events = await db.query('events', where: 'date = ?', whereArgs: [_selectedDay.toLocal().toString().replaceAll('Z', '')]);
+    if (events.isNotEmpty) {
+      setState(() {
+        _currentEvents = events.map((e) => e['name']).join(', ');;
+      });
+    }
+    // Return count events for _selectedDay
+    return 'No events for this day';
   }
 
   @override
@@ -131,9 +189,34 @@ class _MyHomePageState extends State<MyHomePage> {
                 style: TextStyle(fontSize: 30),
                 textAlign: TextAlign.left,
               ),
+              TableCalendar(
+                firstDay: DateTime.utc(2010, 10, 16),
+                lastDay: DateTime.utc(2030, 3, 14),
+                focusedDay: DateTime.now(),
+                selectedDayPredicate: (day) {
+                  return isSameDay(_selectedDay, day);
+                },
+                onDaySelected: (selectedDay, focusedDay){
+                  setState(() {
+                    _selectedDay = selectedDay;
+                    _focusedDay = focusedDay;
+                  });
+                },
+                calendarFormat: _calendarFormat,
+                onFormatChanged: (format) {
+                  setState(() {
+                    _calendarFormat = format;
+                  });
+                },
+              ),
               Text(
-                '$_counter',
+                'Events for : ${_selectedDay.toLocal().day}/${_selectedDay.toLocal().month}/${_selectedDay.toLocal().year}',
                 style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              Text(
+                'Events: $_currentEvents',
+                style: Theme.of(context).textTheme.headlineSmall,
+                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -141,26 +224,30 @@ class _MyHomePageState extends State<MyHomePage> {
         persistentFooterButtons: <Widget>[
           ButtonBar(
             alignment: MainAxisAlignment.center,
+            buttonPadding: const EdgeInsets.all(3),
             children: <Widget>[
-            ElevatedButton(
-              onPressed: _incrementCounter,
-              child: const Icon(
-                Icons.add,
-                color: Colors.green,
+               IconButton(
+                onPressed: addEvent,
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.all(Colors.black),
                 ),
-            ),
-            ElevatedButton(
-              onPressed: _resetCounter,
-              child: const Icon(Icons.refresh),
-            ),
-            ElevatedButton(
-              onPressed: _decrementCounter,
-              child: const Icon(
-                Icons.remove,
-                color: Colors.red,
+                icon: const Icon(
+                  Icons.add,
+                  color: Colors.green,
                 ),
-            )
-          ])
+              ),
+              IconButton(
+                  onPressed: deleteDb,
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all(Colors.black),
+                  ),
+                  icon: const Icon(
+                    Icons.delete,
+                    color: Colors.red,
+                  ),
+                )
+            ],
+          )
         ]);
   }
 }
