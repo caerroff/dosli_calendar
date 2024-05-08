@@ -11,13 +11,11 @@ class _EventCreatePageState extends State<EventCreatePage> {
   final _formKey = GlobalKey<FormState>();
   Database? db;
   
-  TextEditingController _eventNameController = TextEditingController();
-  TextEditingController _eventDateController = TextEditingController();
+  final TextEditingController _eventNameController = TextEditingController();
+  DateTime _eventDate = DateTime.now();
 
   @override
   void dispose() {
-    _eventNameController.dispose();
-    _eventDateController.dispose();
     super.dispose();
   }
 
@@ -63,8 +61,7 @@ class _EventCreatePageState extends State<EventCreatePage> {
                 firstDate: DateTime.now(),
                 lastDate: DateTime(2100),
                 initialDate: DateTime.now(),
-                onDateChanged:(value) => _eventDateController.text = value.toString(),
-                
+                onDateChanged:(value) => setState(() => _eventDate = value),
               ),
               const SizedBox(height: 16.0),
               OutlinedButton(
@@ -73,7 +70,7 @@ class _EventCreatePageState extends State<EventCreatePage> {
                     // Perform event creation logic here
                     String eventName = _eventNameController.text;
                     //FIXME: This is a hack to convert the string to a DateTime object
-                    DateTime eventDate = DateTime.parse(_eventDateController.text);
+                    DateTime eventDate = _eventDate;
                     // Call a function to create the event with the provided data
                     createEvent(eventName, eventDate);
                   }
@@ -102,7 +99,12 @@ class _EventCreatePageState extends State<EventCreatePage> {
       );
     });
 
-
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Event added'),
+      ),
+    );
     // And then return to the main page
     Navigator.pop(context);
   }

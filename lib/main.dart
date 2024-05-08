@@ -61,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
-  String _currentEvents = 'No events for this day';
+  String _currentEvents = '';
   CalendarFormat _calendarFormat = CalendarFormat.month;
   Database? db;
 
@@ -69,12 +69,11 @@ class _MyHomePageState extends State<MyHomePage> {
     if (this.db != null) {
       return Future<Database>.value(this.db);
     }
-    final db = await openDatabase('events.db', 
-      version: 1,
-      onCreate: (Database db, int version) async {
-        await db.execute('CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT, date DATETIME)');
-      }
-    );
+    final db = await openDatabase('events.db', version: 1,
+        onCreate: (Database db, int version) async {
+      await db.execute(
+          'CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT, date DATETIME)');
+    });
     return db;
   }
 
@@ -118,33 +117,39 @@ class _MyHomePageState extends State<MyHomePage> {
       MaterialPageRoute(builder: (context) => EventCreatePage()),
     );
 
-    
     // Save event
     // Display event on calendar
     // Notify user that event has been added
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Event added'),
-      ),
-    );
   }
 
   void deleteDb() {
     deleteDatabase('events.db');
   }
 
-  Future<String> getEventsForDay() async {
-    // Get count events for _selectedDay
+  void getEventsForDay() async {
     final db = await getDb();
-    final List<Map<String, dynamic>> events = await db.query('events', where: 'date = ?', whereArgs: [_selectedDay.toLocal().toString().replaceAll('Z', '')]);
+    final List<Map<String, dynamic>> events = await db.query('events',
+        where: 'date = ?',
+        whereArgs: [DateUtils.dateOnly(_selectedDay).toString()]);
     if (events.isNotEmpty) {
       setState(() {
-        _currentEvents = events.map((e) => e['name']).join(', ');;
+        _currentEvents = events.map((e) => e['name']).join(', ');
+      });
+    } else {
+      setState(() {
+        _currentEvents = 'No events for this day';
       });
     }
-    // Return count events for _selectedDay
-    return 'No events for this day';
+  }
+
+  void initState() {
+    super.initState();
+    getDb().then((db) {
+      setState(() {
+        this.db = db;
+      });
+    });
+    getEventsForDay();
   }
 
   @override
@@ -158,7 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
         appBar: AppBar(
           // TRY THIS: Try changing the color here to a specific color (to
-          // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
+          // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar 
           // change color while the other colors stay the same.
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           // Here we take the value from the MyHomePage object that was created by
@@ -196,10 +201,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 selectedDayPredicate: (day) {
                   return isSameDay(_selectedDay, day);
                 },
-                onDaySelected: (selectedDay, focusedDay){
+                onDaySelected: (selectedDay, focusedDay) {
                   setState(() {
                     _selectedDay = selectedDay;
                     _focusedDay = focusedDay;
+                    getEventsForDay();
                   });
                 },
                 calendarFormat: _calendarFormat,
@@ -226,7 +232,7 @@ class _MyHomePageState extends State<MyHomePage> {
             alignment: MainAxisAlignment.center,
             buttonPadding: const EdgeInsets.all(3),
             children: <Widget>[
-               IconButton(
+              IconButton(
                 onPressed: addEvent,
                 style: ButtonStyle(
                   backgroundColor: MaterialStateProperty.all(Colors.black),
@@ -237,15 +243,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
               IconButton(
-                  onPressed: deleteDb,
-                  style: ButtonStyle(
-                    backgroundColor: MaterialStateProperty.all(Colors.black),
-                  ),
-                  icon: const Icon(
-                    Icons.delete,
-                    color: Colors.red,
-                  ),
-                )
+                onPressed: deleteDb,
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.all(Colors.black),
+                ),
+                icon: const Icon(
+                  Icons.delete,
+                  color: Colors.red,
+                ),
+              )
             ],
           )
         ]);
